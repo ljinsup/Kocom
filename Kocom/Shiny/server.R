@@ -8,146 +8,54 @@ library(CEMS)
 
 shinyServer(function(input, output, session) {
   
-  
-  ########################################################################  ########################################################################
-  
-  output$PublicUI <- renderUI({
-    fluidPage(
-      textInput("publicaddr", label = h4("공공데이터 API주소:"), value = "openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?numOfRows=1&pageNo=1&stationName=%EC%86%A1%ED%8C%8C%EA%B5%AC&dataTerm=DAILY&", width = '100%'),
-    textInput("publicapi", label = h4("공공데이터 API키:"), value = "g2PYYeRkm4XwNs5SkT%2BEm6ZWuLXQCBNLJ4jdEH43rTuU0WjKjo%2B2IBtyAr1EJmS2QqsImnnT3RCr5RNBZ0d25A%3D%3D", width = '100%'),
-      textInput("publicname", label = h4("공공데이터 이름:"), value = "대기정보데이터"),
-    textInput("publicperiod", label = h4("데이터 업데이트 주기(단위: 시간):"), value = "1"),
-      actionButton("publicsend", label = "등록"),
-      actionButton("usgssend", label = "USGS test")
-    )
-  })
-  
-  output$PublicListUI <- renderUI({
-      if(is.null(publictabledata())) {
-        fluidPage(h1("공공데이터를 넣어주세요."),
-                  actionButton("refreshpubliclist", "새로 고침")
-        )
-      }
-      else {
-        fluidPage(
-          checkboxGroupInput("servicelist", label = h4("공공데이터 목록"),
-                             choices = publictabledata(), selected = NULL),
-          actionButton("serviceremove", label = "제거")
-        )}
-  })
-  
-  publictabledata <- reactive({
-    input$refreshpubliclist
-    input$publicsend
-    input$save
-    input$serviceremove
-    res.frame <- data.frame() 
-    
-    cursor <- mongo.find(mongo=mongo_db,
-                         ns=paste(attr(mongo_db, "db"), "pdList", sep="."),
-                         query=mongo.bson.empty(),
-                         fields=mongo.bson.from.JSON('{"_id":0}'))
-    
-    if(mongo.cursor.next(cursor)){
-    res <- mongo.cursor.value(cursor)
-    res <- mongo.bson.to.list(res)
-    res <- as.data.frame(res)
-    res.frame <- rbind(res)
-    }
-    while(mongo.cursor.next(cursor)){
-      res <- mongo.cursor.value(cursor)
-      res <- mongo.bson.to.list(res)
-      res <- as.data.frame(res)
-      res.frame <- rbind(res.frame, res)
-    }
-    if(nrow(res.frame) == 0)
-      return(NULL)
-    else
-      return(as.list(paste(res.frame[,3], res.frame[,1], sep = " ")))
-  })
-  
-  observeEvent(input$publicremove, function() {
-    for(data in input$publiclist){
-      bson <- mongo.bson.buffer.create()
-      mongo.bson.buffer.append(bson, "collection", unlist(strsplit(data, split = " "))[1])
-      bson <- mongo.bson.from.buffer(bson)
-      
-      mongo.remove(mongo_db, paste(attr(mongo_db, "db"), "service", sep = "."), bson)
-      
-    }
-  })
-  
-  ######################################################################################################
-  
-  
-  
-  
-  ########################################################################  ########################################################################
-  
-  
-  
+  dblist <<- as.character(as.list(unlist(publicdatafunc())))
   
   output$text <- renderText({
     invalidateLater(1000, session = NULL)
     toJSON(service)
   })
-    
-  dbnamelist <- reactive({
-    input$dbrefresh
-    dblist <<- rmongodb::mongo.get.database.collections(mongo_public, attr(mongo_public, "db"))
-    list <- list()
-    if(length(dblist)!=0)
-      for(i in 1:length(dblist)){
-        
-        assign(
-          unlist(strsplit(dblist[i], split=".", fixed=TRUE))[2],
-          CEMS::cems.restoreDataType(CEMS::getAllData(mongo_public, unlist(strsplit(dblist[i], split=".", fixed=TRUE))[2])),
-          envir=.GlobalEnv
-        )
-        list[i] <- unlist(strsplit(dblist[i], split=".", fixed=TRUE))[2]
-      }
-    return(list)
-  })
+  
   
   output$CreateUI <- renderUI({fluidPage({
     ######################################
     #        서비스 생성 페이지          #
     ######################################
- 
-      basicPage(
-        sidebarPanel(textOutput("text"), HTML("<br>"), actionButton("init", label = "초기화"), width=12),  
-        
-        tabsetPanel(id="tab", type="pills",
-                    
-                    tabPanel("1단계: 공공데이터 선택",
-                             ############### DB UI ###############
-                             if(length(dblist)==0){    
-                               h1("공공데이터를 넣어주세요")
-                             }
-                             else{
+    
+    basicPage(
+      sidebarPanel(textOutput("text"), HTML("<br>"), actionButton("init", label = "초기화"), width=12),  
+      
+      tabsetPanel(id="tab", type="pills",
+                  
+                  tabPanel("1단계: 공공데이터 선택",
+                           ############### DB UI ###############
+                           if(length(dblist)==0){    
+                             h1("공공데이터를 넣어주세요")
+                             
+                           }
+                           else{
                              fixedPage(
                                try({
-                                plotOutput("dbplot")
+                                 plotOutput("dbplot")
                                }),
                                actionButton("dbadd", label = "추가"),
                                actionButton("dbremove", label = "제거"),
                                actionButton("dbrefresh", label = "새로고침"),
                                
                                selectInput("dbselect", label = h3("공공데이터"),
-                                                  choices = dbnamelist()
+                                           choices = dbnamelist()
                                ),
-                                      
+                               
                                uiOutput("dbui")
                                
-                               )}
-                             ),
-                    
-                    tabPanel("2단계: 분석 방법 선택",
-                             ############### Analysis UI ###############
-                             if(length(dblist)==0){    
-                               h1("공공데이터를 넣어주세요")
-                             }
-                             else{
+                             )}
+                  ),
+                  
+                  tabPanel("2단계: 분석 방법 선택",
+                           ############### Analysis UI ###############
+                           if(length(dblist)==0){    
+                             h1("공공데이터를 넣어주세요")
+                           }
+                           else{
                              fixedPage(
                                actionButton("refresh1", label = "새로 고침"),
                                
@@ -162,124 +70,120 @@ shinyServer(function(input, output, session) {
                                actionButton("methodremove", label = "제거"),
                                
                                uiOutput("methodui")
-                               )}
-                             )
-                            ,
-                   tabPanel("3단계: 결과 수행 선택",
-                            ############### Result UI ###############
-                            if(length(dblist)==0){    
-                              h1("공공데이터를 넣어주세요")
-                            }
-                            else{
-                            fixedPage(
-                              actionButton("refresh2", label = "새로 고침"),
-                              
-                              uiOutput("resultui"),
-                              
-                              uiOutput("rangeui"),
-                              
-                              selectInput("resulttype", label = h3("처리 방법"), 
-                                          choices = c("", "추가분석", "Actuator제어", "Push메시지")),
-                              
-                              uiOutput("resulttypeui"),
-                              
-                              actionButton("resultadd", label = "추가"),
-                              actionButton("resultremove", label = "제거")               
-                              )}
-                            ),
-                   tabPanel("기타 설정",
-                            fixedPage(
-                              h3("EPL 생성"),
-                              column(2, offset=1,
-                                     selectInput("eplsensor", label = NULL, 
-                                                 choices = c("",
-                                                             "GA-가스센서1",
-                                                             "GB-가스센서2",
-                                                             "VB-진동센서",
-                                                             "IR-적외선센서",
-                                                             "AC-가속도센서",
-                                                             "TH-온습도센서",
-                                                             "MA-마그넷센서",
-                                                             "DB-dB센서",
-                                                             "CS-조도센서",
-                                                             "FL-불꽃센서",
-                                                             "SH-소리센서"))
-                              ),
-                              column(2, 
-                                     selectInput("eploperator", label = NULL, 
-                                                 choices = c("", ">", ">=", "==", "<=", "<"))
-                              ),
-                              column(2, 
-                                     textInput("eplvalue", label=NULL)
-                              ),
-                              actionButton("epladd", label = "추가"),
-                              actionButton("eplremove", label = "제거"),
-                              
-                              textInput("serviceid", "서비스 관리 번호:"),
-                              textInput("description", "설명:"),
-                              actionButton("save", label = "저장")                                                           
-                              )
-                            )
-                    
-                    )
+                             )}
+                  )
+                  ,
+                  tabPanel("3단계: 결과 수행 선택",
+                           ############### Result UI ###############
+                           if(length(dblist)==0){    
+                             h1("공공데이터를 넣어주세요")
+                           }
+                           else{
+                             fixedPage(
+                               actionButton("refresh2", label = "새로 고침"),
+                               
+                               uiOutput("resultui"),
+                               
+                               uiOutput("rangeui"),
+                               
+                               selectInput("resulttype", label = h3("처리 방법"), 
+                                           choices = c("", "추가분석", "Actuator제어", "Push메시지")),
+                               
+                               uiOutput("resulttypeui"),
+                               
+                               actionButton("resultadd", label = "추가"),
+                               actionButton("resultremove", label = "제거")               
+                             )}
+                  ),
+                  tabPanel("기타 설정",
+                           fixedPage(
+                             h3("EPL 생성"),
+                             column(2, offset=1,
+                                    selectInput("eplsensor", label = NULL, 
+                                                choices = c("",
+                                                            "GA-가스센서1",
+                                                            "GB-가스센서2",
+                                                            "VB-진동센서",
+                                                            "IR-적외선센서",
+                                                            "AC-가속도센서",
+                                                            "TH-온습도센서",
+                                                            "MA-마그넷센서",
+                                                            "DB-dB센서",
+                                                            "CS-조도센서",
+                                                            "FL-불꽃센서",
+                                                            "SH-소리센서"))
+                             ),
+                             column(2, 
+                                    selectInput("eploperator", label = NULL, 
+                                                choices = c("", ">", ">=", "==", "<=", "<"))
+                             ),
+                             column(2, 
+                                    textInput("eplvalue", label=NULL)
+                             ),
+                             actionButton("epladd", label = "추가"),
+                             actionButton("eplremove", label = "제거"),
+                             
+                             textInput("serviceid", "서비스 관리 번호:"),
+                             textInput("description", "설명:"),
+                             actionButton("save", label = "저장")                                                           
+                           )
+                  )
+                  
+      )
+    )
+    
+  })
+  })
+  
+  
+  ##############################   DBPLOT   ##############################
+  output$dbplot <- renderPlot({
+    
+    set <- get(input$dbselect)
+    temp <- set[order(set[input$sort]),]
+    
+    p <- plot(x=temp[[input$sort]],
+              y=temp[[input$attr]],
+              type="l",
+              xlab=input$sort,
+              ylab=input$attr
+    )
+  }, width = 800, height=350)
+  
+  ##############################   DBSAVE   ##############################
+  observeEvent(input$dbadd, function() {
+    data <- DB()
+    if(!is.null(data$attr)){
+      db_info[[length(db_info) +1]] <<- data
+      .GlobalEnv$service[["db_info"]] <- .GlobalEnv$db_info
+    }
+  })
+  
+  observeEvent(input$dbremove, function() {
+    if(length(analysis_info) == 0){
+      if(length(db_info) != 0) {
+        db_info[[length(db_info)]] <<- NULL
+        .GlobalEnv$service[["db_info"]] <- .GlobalEnv$db_info
+      }
+    }
+  })
+  ##############################  DB Refresh  ##############################
+  dbnamelist <- reactive({
+    input$dbrefresh
+#    dblist <<- rmongodb::mongo.get.database.collections(mongo_public, attr(mongo_public, "db"))
+    
+    if(length(dblist)!=0)
+      for(i in 1:length(dblist)){
+        
+        assign(
+          dblist[i],
+          CEMS::cems.restoreDataType(CEMS::getAllData(mongo_public, dblist[i])),
+          envir=.GlobalEnv
         )
         
-    })
-    })
-  
-  #                             SERVICE LIST                             #
-  ##############################     UI     ##############################
-  output$ServiceListUI <- renderUI({
-    if(is.null(publictabledata())) {
-      fluidPage(h1("생성된 서비스가 없습니다."),
-                actionButton("refreshpubliclist", "새로 고침")
-      )
-    }
-    else {
-      fluidPage(
-        checkboxGroupInput("servicelist", label = h4("공공데이터 목록"),
-                           choices = publictabledata(), selected = NULL),
-        actionButton("serviceremove", label = "제거")
-      )}
+      }
+    return(dblist)
   })
-  
-  ##############################    FUNC    ##############################
-  tabledata <- reactive({
-    input$refreshlist
-    input$publiceremove
-    res.frame <- data.frame() 
-    
-    cursor <- mongo.find(mongo=mongo_service,
-                         ns=paste(attr(mongo_service, "db"), "service", sep="."),
-                         query=mongo.bson.empty(),
-                         fields=mongo.bson.from.JSON('{"_id":0, "service_id":1, "description":1}'))
-    while(mongo.cursor.next(cursor)){
-      res <- mongo.cursor.value(cursor)
-      res <- mongo.bson.to.list(res)
-      res <- as.data.frame(res)
-      res.frame <- rbind(res.frame, res)
-    }
-    if(nrow(res.frame) == 0)
-      return(NULL)
-    else
-      return(as.list(paste(res.frame[,1], res.frame[,2], sep = " ")))
-  })
-  
-  ########################################################################
-  observeEvent(input$serviceremove, function() {
-    for(data in input$servicelist){
-      bson <- mongo.bson.buffer.create()
-      mongo.bson.buffer.append(bson, "service_id", unlist(strsplit(data, split = " "))[1])
-      bson <- mongo.bson.from.buffer(bson)
-      
-      mongo.remove(mongo_service, paste(attr(mongo_service, "db"), "service", sep = "."), bson)
-      
-    }
-  })
-  
-  
-  
-  
   
   #                                  DB                                  #
   ##############################     UI     ##############################
@@ -287,7 +191,7 @@ shinyServer(function(input, output, session) {
     if (is.null(input$dbselect))
       return()
     
-#     set <- unlist(strsplit(input$dbselect, split=".", fixed=TRUE))[2]
+    #     set <- unlist(strsplit(input$dbselect, split=".", fixed=TRUE))[2]
     set <- get(input$dbselect)
     switch(input$dbselect,
            fluidRow(
@@ -307,98 +211,20 @@ shinyServer(function(input, output, session) {
     )
   })
   
-  ##############################   DBPLOT   ##############################
-  output$dbplot <- renderPlot({
-    
-    set <- get(input$dbselect)
-    temp <- set[order(set[input$sort]),]
-    
-    p <- plot(x=temp[[input$sort]],
-         y=temp[[input$attr]],
-         type="l",
-         xlab=input$sort,
-         ylab=input$attr
-    )
-  }, width = 800, height=350)
-
-  ##############################   DBSAVE   ##############################
-  observeEvent(input$dbadd, function() {
-    data <- DB()
-    if(!is.null(data$attr)){
-      db_info[[length(db_info) +1]] <<- data
-      .GlobalEnv$service[["db_info"]] <- .GlobalEnv$db_info
-    }
-  })
-  
-  observeEvent(input$dbremove, function() {
-    if(length(analysis_info) == 0){
-      if(length(db_info) != 0) {
-        db_info[[length(db_info)]] <<- NULL
-        .GlobalEnv$service[["db_info"]] <- .GlobalEnv$db_info
-      }
-    }
-  })
- 
   ##############################    FUNC    ##############################
   DB <- reactive({    
     if(!is.null(input$dbselect) && !is.null(input$sort) && !is.null(input$check)){
-    res <- list(db=attr(mongo_public, "db"),
-                collection=input$dbselect,
-                sort=input$sort,
-                attr=input$check)
-    return(res)
+      res <- list(db=attr(mongo_public, "db"),
+                  collection=input$dbselect,
+                  sort=input$sort,
+                  attr=input$check)
+      return(res)
     }
     else return(NULL)
   })
   
   #########################################################################
   
-  
-  
-  
-  
-  
-  
-  
-  #                                ANALYSIS                               #
-  ###############################   DATAUI   ##############################
-  output$sensorselectui <- renderUI({
-    fluidRow({
-      radioButtons("analysissensor", label=h3("분석할 센서 선택"),
-                   choices = c("GA-가스센서1",
-                               "GB-가스센서2",
-                               "VB-진동센서",
-#                               "IR-적외선센서",
-#                               "AC-가속도센서",
-#                               "TH-온습도센서",
-#                               "MA-마그넷센서",
-#                               "DB-dB센서",
-#                               "CS-조도센서",
-#                               "FL-불꽃센서",
-                               "SH-소리센서") )
-      
-      #       renderPlot({}) // 센서데이터 그래프
-    })
-    })
-
-  output$publicselectui <- reactiveUI(function() {
-    
-    if(length(publicdata()) == 0){
-      fluidRow({
-        h4("공공데이터를 선택하고 새로 고침을 눌러 주세요.")
-        
-        })
-    }else{
-      fluidRow({  
-        radioButtons("analysispublic", label=h3("공공데이터 선택"),
-                   choices = JSONtostr(publicdata(), "collection", "attr" ))
-      
-      #         renderPlot({}) // 공공데이터 그래프
-        
-        })
-      }
-    })
-
   ###############################  METHODUI  ##############################
   output$methodui <- renderUI({
     input$refresh1
@@ -416,18 +242,18 @@ shinyServer(function(input, output, session) {
                sliderInput("predrange", "데이터 개수",
                            min = length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
                            max = nrow(recentpublic[recentinput$attr])
-                                     +length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
+                           +length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
                            value=nrow(recentpublic[recentinput$attr])
-                                     +length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
+                           +length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
                            step=1
-                           ),
+               ),
                renderPlot({
                  plot(forecast(auto.arima(recentpublic[recentinput$attr])), main="",
                       xlim=c( nrow(recentpublic[recentinput$attr])+length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean)-input$predrange,
                               nrow(recentpublic[recentinput$attr])+length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean) )
                  ) 
-                 }, width=800)
-           ),
+               }, width=800)
+             ),
            "비교분석" =
              fluidRow(
                sliderInput("comprange", "구간 선택",
@@ -435,13 +261,13 @@ shinyServer(function(input, output, session) {
                            max = nrow(recentpublic[recentinput$attr]),
                            value=c(1, nrow(recentpublic[recentinput$attr])),
                            step=1
-                           ),
+               ),
                renderPlot({
                  plot(x=recentpublic[seq(unlist(input$comprange)[1], unlist(input$comprange)[2], by=1), recentinput$sort],
                       y=recentpublic[seq(unlist(input$comprange)[1], unlist(input$comprange)[2], by=1), recentinput$attr],
                       type='l',
                       main="",
-
+                      
                       xlab=recentinput$sort,
                       ylab=recentinput$attr
                       
@@ -449,8 +275,8 @@ shinyServer(function(input, output, session) {
                  abline(h=mean(unlist(recentpublic[recentinput$attr])), col="blue")
                  abline(h=max(recentpublic[recentinput$attr]), col="red")
                  abline(h=min(recentpublic[recentinput$attr]), col="red")
-                 }, width=800)
-               ),
+               }, width=800)
+             ),
            "비율분석" =
              fluidPage(
                column(7, offset=1,
@@ -460,16 +286,16 @@ shinyServer(function(input, output, session) {
                                          round(count(recentpublic[recentinput$attr])$freq/sum(count(recentpublic[recentinput$attr])$freq)*100, 3), "%)" ,
                                          sep=" ") )
                         
-                        }, height=650, width=650)
-                      ),
+                      }, height=650, width=650)
+               ),
                column(2, offset=2,
                       renderTable({
                         count(recentpublic[recentinput$attr])
-                        })
-                      )
+                      })
                )
-           )
-    })
+             )
+    )
+  })
   
   ############################## METHODSAVE ##############################
   observeEvent(input$methodadd, function() {
@@ -487,7 +313,49 @@ shinyServer(function(input, output, session) {
       }
     }
   })
-
+  
+  #                                ANALYSIS                               #
+  ###############################   DATAUI   ##############################
+  output$sensorselectui <- renderUI({
+    fluidRow({
+      radioButtons("analysissensor", label=h3("분석할 센서 선택"),
+                   choices = c("GA-가스센서1",
+                               "GB-가스센서2",
+                               "VB-진동센서",
+                               #                               "IR-적외선센서",
+                               #                               "AC-가속도센서",
+                               #                               "TH-온습도센서",
+                               #                               "MA-마그넷센서",
+                               #                               "DB-dB센서",
+                               #                               "CS-조도센서",
+                               #                               "FL-불꽃센서",
+                               "SH-소리센서") )
+      
+      #       renderPlot({}) // 센서데이터 그래프
+    })
+  })
+  
+  output$publicselectui <- reactiveUI(function() {
+    
+    if(length(publicdata()) == 0){
+      fluidRow({
+        h4("공공데이터를 선택하고 새로 고침을 눌러 주세요.")
+        
+      })
+    }else{
+      fluidRow({  
+        radioButtons("analysispublic", label=h3("공공데이터 선택"),
+                     choices = JSONtostr(publicdata(), "collection", "attr" ))
+        
+        #         renderPlot({}) // 공공데이터 그래프
+        
+      })
+    }
+  })
+  
+  
+  
+  
   ##############################    FUNC    ##############################
   publicdata <- reactive({
     input$refresh1
@@ -502,11 +370,10 @@ shinyServer(function(input, output, session) {
       for(i in 1:nrow(df)){
         list[[length(list)+1]] <- toJSON(df[i,])
       }
-      
       return(unlist(list))
     }
   })
-
+  
   ANALYSIS <- reactive({
     list <- list()
     list$sensor <- list(unlist(strsplit(input$analysissensor, split="-"))[1])
@@ -526,12 +393,6 @@ shinyServer(function(input, output, session) {
   #########################################################################
   
   
-  
-  
-  
-  
-  
-  
   #                                 RESULT                                #
   ###############################  RESULTUI  ##############################
   output$resultui <- renderUI(function() {
@@ -540,46 +401,46 @@ shinyServer(function(input, output, session) {
         radioButtons("analysislist", label = h3("처리 방법 선택"),
                      choices = JSONtostr(analysisdata(), "no", "sensor", "public", "method"),
                      selected = JSONtostr(analysisdata(), "no", "sensor", "public", "method")[1])
-        })
+      })
     }
     else{
       fluidRow()
     }
-    })
+  })
   
   output$rangeui <- reactiveUI(function() {
     if( length( analysisdata() != 0 ) ){
-    switch(fromJSON(strtoJSON(input$analysislist, analysisdata()))$method,
-           "Predicting" = 
-             fluidRow(
-               h4("센서값에 따른 예측 구간"), 
-               img(src = "case.PNG", width = 580, height = 207),
-               selectInput("area", 'Options', c(1, 2, 3, 4, 5, 6), multiple=TRUE, selectize=FALSE)
+      switch(fromJSON(strtoJSON(input$analysislist, analysisdata()))$method,
+             "Predicting" = 
+               fluidRow(
+                 h4("센서값에 따른 예측 구간"), 
+                 img(src = "case.PNG", width = 580, height = 207),
+                 selectInput("area", 'Options', c(1, 2, 3, 4, 5, 6), multiple=TRUE, selectize=FALSE)
                ),
-           "Comparing" =
-             fluidRow(
-               sliderInput("range", "결과 범위",
-                           min = -100,
-                           max = 100,
-                           value=c(-100, 100),
-                           step=1
-               )
+             "Comparing" =
+               fluidRow(
+                 sliderInput("range", "결과 범위",
+                             min = -100,
+                             max = 100,
+                             value=c(-100, 100),
+                             step=1
+                 )
                ),
-           "Counting" =
-             fluidRow(
-               sliderInput("range", "결과 범위",
-                           min = 0,
-                           max = 100,
-                           value=c(0, 100),
-                           step=1
-                           )
+             "Counting" =
+               fluidRow(
+                 sliderInput("range", "결과 범위",
+                             min = 0,
+                             max = 100,
+                             value=c(0, 100),
+                             step=1
+                 )
                )
-           )
+      )
     }
     else{
       fluidRow()
     }
-    })
+  })
   
   output$resulttypeui <- renderUI({
     if (is.null(input$resulttype))
@@ -588,11 +449,11 @@ shinyServer(function(input, output, session) {
     switch(input$resulttype,
            "추가분석" = fluidPage(
              if(length(analysisdata()) != 0){
-             radioButtons("resume", label = h4("분석 방법"),
-                          choices = JSONtostr(analysisdata(), "no", "sensor", "public", "method"),
-                          selected = NULL)
+               radioButtons("resume", label = h4("분석 방법"),
+                            choices = JSONtostr(analysisdata(), "no", "sensor", "public", "method"),
+                            selected = NULL)
              }
-             ),
+           ),
            "Actuator제어" = fluidPage(
              selectInput("actuator", label = h4("Actuator종류"), 
                          choices = c("",
@@ -601,10 +462,10 @@ shinyServer(function(input, output, session) {
                                      "Act03-커튼제어기",
                                      "Act04-실내온도변환기"
                                      
-                                     )),
+                         )),
              radioButtons("action", label = h4("동작"),
-                                  choices = c("on", "off"), selected = NULL)
-             ),
+                          choices = c("on", "off"), selected = NULL)
+           ),
            "Push메시지" = fluidPage(
              textInput("id", label = h4("제목")),
              textInput("message", label = h4("메세지"))
@@ -673,88 +534,9 @@ shinyServer(function(input, output, session) {
     return(list)
   })
   
-
+  
   #########################################################################
   
-  observeEvent(input$save, function() {
-    progress <- Progress$new()
-    progress$set(message = "서비스 저장중.")
-    
-    if(length(.GlobalEnv$service) != 0
-       && !(is.null(.GlobalEnv$service$service_id)
-       && is.null(.GlobalEnv$service$description)
-       && is.null(.GlobalEnv$service$db_info)
-       && is.null(.GlobalEnv$service$analysis)
-       && is.null(.GlobalEnv$service$resultmnmt))
-       ){
-      
-      .GlobalEnv$service[["service_id"]] <- input$serviceid
-      list <- list()
-      sensor <- list()
-      actuator <- list()
-      desc <- list()
-    
-      
-        
-      for(data in .GlobalEnv$service[["analysis"]]){
-        sensor <- append(data$sensor, sensor)
-        sensor <- unique(unlist(sensor))
-      }
-    
-      for(data in .GlobalEnv$service[["resultmnmt"]]){
-        if(!is.null(data$actuator_id)){
-          actuator <- append(data$actuator_id, actuator)
-          actuator <- unique(unlist(actuator))
-        }
-      }
-    
-      list$sensor <- sensor
-      list$actuator <- actuator
-    
-      .GlobalEnv$service[["servicetype"]] <- .GlobalEnv$service$service_id
-      .GlobalEnv$service[["requirement"]] <- list
-      .GlobalEnv$service[["description"]] <- input$description
-      progress$set(message = toJSON(service))
-      
-      if(mongo.insert(mongo_service,
-                        paste(attr(mongo_service, "db"), "service", sep="."),
-                        mongo.bson.from.JSON(toJSON(.GlobalEnv$service)))    ){
-        progress$set(message = "저장 되었습니다.")
-        service <<- list()
-        service_id <<- list()
-        db_info <<- list()
-        analysis_info <<- list()
-        resultmnmt <<- list()
-        requirement <<- list()
-        epl <<- list()
-        sensorlist <<- list()  
-        Sys.sleep(2.0)
-        progress$close()
-          
-          
-        }
-    }
-    else{
-      progress$set(message = "입력할 데이터가 남았습니다.")
-      Sys.sleep(2.0)
-      progress$close()
-    }
-  })
-
-  # observeEvent(input$init, function() {
-  observeEvent(c(input$init, session$request), function() {
-    messaging <- Progress$new()
-    messaging$set(message = "초기화 되었습니다.")
-    service <<- list()
-    service_id <<- list()
-    db_info <<- list()
-    analysis_info <<- list()
-    resultmnmt <<- list()
-    requirement <<- list()
-    epl <<- list()
-    Sys.sleep(2.0)
-    messaging$close()
-  })
   #########################################################################
   observeEvent(input$epladd, function() {  
     messaging <- Progress$new()
@@ -781,7 +563,7 @@ shinyServer(function(input, output, session) {
       messaging$close()
     }
   })
-
+  #########################################################################
   observeEvent(input$eplremove, function() {
     if(length(epl) != 0) {
       epl[[length(epl)]] <<- NULL
@@ -796,19 +578,110 @@ shinyServer(function(input, output, session) {
   
   
   
-  observeEvent(input$publicsend, function() {
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  ########################################################################  
+  #                           Publicdata List                            #
+  ########################################################################
+  output$PublicUI <- renderUI({
+    fluidPage(
+      textInput("publicaddr", label = h4("공공데이터 API주소:"), value = "openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?numOfRows=1&pageNo=1&stationName=%EC%86%A1%ED%8C%8C%EA%B5%AC&dataTerm=DAILY&", width = '100%'),
+      textInput("publicapi", label = h4("공공데이터 API키:"), value = "g2PYYeRkm4XwNs5SkT%2BEm6ZWuLXQCBNLJ4jdEH43rTuU0WjKjo%2B2IBtyAr1EJmS2QqsImnnT3RCr5RNBZ0d25A%3D%3D", width = '100%'),
+      textInput("publicname", label = h4("공공데이터 이름:"), value = "대기정보데이터"),
+      textInput("publicperiod", label = h4("데이터 업데이트 주기(단위: 시간):"), value = "1"),
+      actionButton("publicsend", label = "등록")
+    )
+  })
+  
+  output$PublicListUI <- renderUI({
+    if(is.null(publictabledata())) {
+      fluidPage(h1("공공데이터를 넣어주세요."),
+                actionButton("refreshpubliclist", "새로 고침")
+      )
+    }
+    else {
+      fluidPage(
+        checkboxGroupInput("publiclist", label = h4("공공데이터 목록"),
+                           choices = publictabledata(), selected = NULL),
+        actionButton("publicremove", label = "제거")
+      )}
+  })
+  
+  ########################################################################
+  publictabledata <- reactive({
+    input$refreshpubliclist
+    input$publicsend
+    input$save
+    input$publicremove
+    res.frame <- data.frame() 
     
+    cursor <- mongo.find(mongo=mongo_db,
+                         ns=paste(attr(mongo_db, "db"), "pdList", sep="."),
+                         query=mongo.bson.empty(),
+                         fields=mongo.bson.from.JSON('{"_id":0}'))
+    
+    if(mongo.cursor.next(cursor)){
+      res <- mongo.cursor.value(cursor)
+      res <- mongo.bson.to.list(res)
+      res <- as.data.frame(res)
+      res.frame <- rbind(res)
+    }
+    while(mongo.cursor.next(cursor)){
+      res <- mongo.cursor.value(cursor)
+      res <- mongo.bson.to.list(res)
+      res <- as.data.frame(res)
+      res.frame <- rbind(res.frame, res)
+    }
+    if(nrow(res.frame) == 0)
+      return(NULL)
+    else
+      return(as.list(paste(res.frame[,1], res.frame[,6], res.frame[,4], res.frame[,2], sep = " ")))
+  })
+  ########################################################################
+  observeEvent(input$publicremove, function() {
+    
+    .jinit("www/MQTTPublisher.jar")
+    mqtt <- .jnew("mqtt/MqttSend")
+    
+    key <- getAllData(mongo_db, "key")
+    key <- as.character(key[1,1])
+    topic <- paste(key, "remove", sep = "/")
+    
+    for(data in input$publiclist){
+      list <- list()
+      list$id <- unlist(strsplit(data, split = " "))[1]
+      
+      msg <- toJSON(list)
+      mqtt$SEND("127.0.0.1", "1883", topic, msg)
+    }
+  })
+  
+  ######################################################################################################
+  observeEvent(input$publicsend, function() {
     if(!is.null(input$publicaddr)
        || !is.null(input$publickey)
        || !is.null(input$publicname)
        || inputFix(input$publicperiod, "^[1-9]+$")){
-    
+      
       list <- list()
-    
+      
       key <- getAllData(mongo_db, "key")
       key <- as.character(key[1,1])
       
-      topic <- paste(key, "PDImport", sep = "/")
+      topic <- paste(key, "import", sep = "/")
       
       .jinit("www/MQTTPublisher.jar")
       mqtt <- .jnew("mqtt/MqttSend")
@@ -817,18 +690,19 @@ shinyServer(function(input, output, session) {
       list$apikey <- input$publicapi
       list$collection <- input$publicname
       list$period <- input$publicperiod
-    
+      
       msg <- toJSON(list)
-#      print(list)    
-      mqtt$SEND("127.0.0.1", "1883", topic, msg)  
+      #      print(list)  
+      rm(list)
+      mqtt$SEND("127.0.0.1", "1883", topic, msg) 
       print(topic)
-      }
+    }
     else {
       messaging <- Progress$new()
       messaging$set(message = "입력값을 확인해주세요.")
       Sys.sleep(2.0)
       messaging$close()
-      }
+    }
   })
   
   
@@ -836,5 +710,175 @@ shinyServer(function(input, output, session) {
   
   
   
-#########################################################################
+  #########################################################################
+  
+  
+  
+  ########################################################################  ########################################################################
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  #                             SERVICE LIST                             #
+  ##############################     UI     ##############################
+  output$ServiceListUI <- renderUI({
+    if(is.null(tabledata())) {
+      fluidPage(h1("생성된 서비스가 없습니다."),
+                actionButton("refreshpubliclist", "새로 고침")
+      )
+    }
+    else {
+      fluidPage(
+        checkboxGroupInput("servicelist", label = h4("공공데이터 목록"),
+                           choices = publictabledata(), selected = NULL),
+        actionButton("serviceremove", label = "제거")
+      )}
+  })
+  
+  ##############################    FUNC    ##############################
+  tabledata <- reactive({
+    input$refreshlist
+    input$publiceremove
+    res.frame <- data.frame() 
+    
+    cursor <- mongo.find(mongo=mongo_db,
+                         ns=paste(attr(mongo_db, "db"), "service", sep="."),
+                         query=mongo.bson.empty(),
+                         fields=mongo.bson.from.JSON('{"_id":0, "service_id":1, "description":1}'))
+    while(mongo.cursor.next(cursor)){
+      res <- mongo.cursor.value(cursor)
+      res <- mongo.bson.to.list(res)
+      res <- as.data.frame(res)
+      res.frame <- rbind(res.frame, res)
+    }
+    if(nrow(res.frame) == 0)
+      return(NULL)
+    else
+      return(as.list(paste(res.frame[,1], res.frame[,2], sep = " ")))
+  })
+  
+  ########################################################################
+  observeEvent(input$serviceremove, function() {
+    for(data in input$servicelist){
+      bson <- mongo.bson.buffer.create()
+      mongo.bson.buffer.append(bson, "service_id", unlist(strsplit(data, split = " "))[1])
+      bson <- mongo.bson.from.buffer(bson)
+      
+      mongo.remove(mongo_db, paste(attr(mongo_db, "db"), "service", sep = "."), bson)
+      
+    }
+  })
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  observeEvent(input$save, function() {
+    progress <- Progress$new()
+    progress$set(message = "서비스 저장중.")
+    
+    if(length(.GlobalEnv$service) != 0
+       && !(is.null(.GlobalEnv$service$service_id)
+            && is.null(.GlobalEnv$service$description)
+            && is.null(.GlobalEnv$service$db_info)
+            && is.null(.GlobalEnv$service$analysis)
+            && is.null(.GlobalEnv$service$resultmnmt))
+    ){
+      
+      .GlobalEnv$service[["service_id"]] <- input$serviceid
+      list <- list()
+      sensor <- list()
+      actuator <- list()
+      desc <- list()
+      
+      
+      
+      for(data in .GlobalEnv$service[["analysis"]]){
+        sensor <- append(data$sensor, sensor)
+        sensor <- unique(unlist(sensor))
+      }
+      
+      for(data in .GlobalEnv$service[["resultmnmt"]]){
+        if(!is.null(data$actuator_id)){
+          actuator <- append(data$actuator_id, actuator)
+          actuator <- unique(unlist(actuator))
+        }
+      }
+      
+      list$sensor <- sensor
+      list$actuator <- actuator
+      
+      .GlobalEnv$service[["servicetype"]] <- .GlobalEnv$service$service_id
+      .GlobalEnv$service[["requirement"]] <- list
+      .GlobalEnv$service[["description"]] <- input$description
+      progress$set(message = toJSON(service))
+      
+      if(mongo.insert(mongo_db,
+                      paste(attr(mongo_db, "db"), "service", sep="."),
+                      mongo.bson.from.JSON(toJSON(.GlobalEnv$service)))    ){
+        progress$set(message = "저장 되었습니다.")
+        service <<- list()
+        service_id <<- list()
+        db_info <<- list()
+        analysis_info <<- list()
+        resultmnmt <<- list()
+        requirement <<- list()
+        epl <<- list()
+        sensorlist <<- list()  
+        Sys.sleep(2.0)
+        progress$close()
+        
+        
+      }
+    }
+    else{
+      progress$set(message = "입력할 데이터가 남았습니다.")
+      Sys.sleep(2.0)
+      progress$close()
+    }
+  })
+  
+  observeEvent(c(input$init, session$request), function() {
+    
+    messaging <- Progress$new()
+    messaging$set(message = "초기화 되었습니다.")
+    service <<- list()
+    service_id <<- list()
+    db_info <<- list()
+    analysis_info <<- list()
+    resultmnmt <<- list()
+    requirement <<- list()
+    epl <<- list()
+    Sys.sleep(2.0)
+    messaging$close()
+  })
+  
+  
+  
+  
+  
+  
 })

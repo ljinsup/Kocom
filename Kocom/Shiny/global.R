@@ -10,18 +10,24 @@ resultmnmt <<- list()
 requirement <<- list()
 epl <<- list()
 sensorlist <<- list()
+colllist<<- list()
 
-DBHOST <- "163.180.117.72"
+
+DBHOST <- "localhost"
 DBPORT <- 30000
 
 mongo_db <- CEMS::connectMongo(Addr = DBHOST, DB="scconfig", port=DBPORT)
 mongo_user <- CEMS::connectMongo(Addr = DBHOST, DB="userdata", port=DBPORT)
-mongo_service <- CEMS::connectMongo(Addr = DBHOST, DB="clouddata", port=DBPORT)
 mongo_tg <- CEMS::connectMongo(Addr = DBHOST, DB="sensordata", port=DBPORT)
 mongo_public <- CEMS::connectMongo(Addr = DBHOST, DB="publicdata", port=DBPORT)
 mongo_usgs <- CEMS::connectMongo(Addr = DBHOST, DB="usgsdata", port=DBPORT)
 
-dblist <- rmongodb::mongo.get.database.collections(mongo_db, attr(mongo_db, "db"))
+for(coll in colllist){
+  if(coll[,2]=="TRUE")
+    dblist <- append(dblist, coll[,3])
+}
+
+#dblist <- rmongodb::mongo.get.database.collections(mongo_db, attr(mongo_db, "db"))
 tglist <- rmongodb::mongo.get.database.collections(mongo_user, attr(mongo_user, "db"))
 
 
@@ -85,3 +91,35 @@ inputFix <- function(input, Regexp){
   else
     return(FALSE)
 }
+
+
+publicdatafunc <- function(){
+  res.frame <- data.frame() 
+  
+  cursor <- mongo.find(mongo=mongo_db,
+                       ns=paste(attr(mongo_db, "db"), "pdList", sep="."),
+                       query=mongo.bson.empty(),
+                       fields=mongo.bson.from.JSON('{"_id":0}'))
+  
+  if(mongo.cursor.next(cursor)){
+    res <- mongo.cursor.value(cursor)
+    res <- mongo.bson.to.list(res)
+    res <- as.data.frame(res)
+    res.frame <- rbind(res)
+  }
+  while(mongo.cursor.next(cursor)){
+    res <- mongo.cursor.value(cursor)
+    res <- mongo.bson.to.list(res)
+    res <- as.data.frame(res)
+    res.frame <- rbind(res.frame, res)
+  }
+  if(nrow(res.frame) == 0)
+    return(NULL)
+  else
+    return(unique(as.list(as.character(res.frame[,4]))))
+}
+
+
+
+
+

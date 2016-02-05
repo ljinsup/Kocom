@@ -14,7 +14,7 @@ var PD_DB = process.env.PD_DB || "publicdata";
 var PDLIST_DB = process.env.PDLIST_DB || PD_DB;
 var PDLIST_COLL = process.env.PDLIST_COLL || "pdList";
 var KEY_TOPIC = process.env.KEY_TOPIC || "DEFAULT";
-var TIME_UNIT = process.env.UP_UNIT || 'second';//1000 * 10;
+var TIME_UNIT = process.env.UP_UNIT || 'hour';//1000 * 10;
 
 var MQTTClient = null;
 var DB_DATA = null;
