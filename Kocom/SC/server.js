@@ -266,53 +266,50 @@ var MH = {
     }
 };
 
+SC_Console.startPrint('Smart Cloud Initializing...');
 SC_Console.midPrint("Smart Cloud Configuration DB URI : " + DB_URI + CFG_DB);
 SC_Console.midPrint("Connecting to Smart Cloud Configuration DB ...");
-MongoClient.connect(DB_URI + CFG_DB, function (err, db) {
-
-    DB_SCCFG = db;
+MongoClient.connect(DB_URI + CFG_DB, function (err, db_SCCFG) {
+    DB_SCCFG = db_SCCFG;
     SC_Console.midPrint("Finished.");
 
-    SC_Console.startPrint('MH Initializing...');
-    SC_Console.midPrint("Connecting to MongoDB server... (" + DB_URI + ")");
+    SC_Console.midPrint("Initialize KEY_TOPIC...");
     MH.removeAll(DB_SCCFG, 'key', function () {
+        SC_Console.midPrint('Previous KEY_TOPIC is Removed');
+        
+        MH.insertOne(DB_SCCFG, 'key', {key: +KEY_TOPIC}, function () {
+            SC_Console.midPrint('New KEY_TOPIC is Inserted (' + KEY_TOPIC + ')');
 
-        SC_Console.midPrint("Thin-Gateway Configuration DB URI : " + DB_URI + TG_DB);
-        SC_Console.midPrint("Connecting to Thin-Gateway Configuration DB ...");
-        MongoClient.connect(DB_URI + TG_DB, function (err, db) {
-            DB_TGCFG = db;
-            SC_Console.midPrint("Finished.");
-        });
+            SC_Console.midPrint("Thin-Gateway Configuration DB URI : " + DB_URI + TG_DB);
+            SC_Console.midPrint("Connecting to Thin-Gateway Configuration DB ...");
+            MongoClient.connect(DB_URI + TG_DB, function (err, db_TGCFG) {
+                DB_TGCFG = db_TGCFG;
+                SC_Console.midPrint("Finished.");
 
-        SC_Console.midPrint("Group Data DB URI : " + DB_URI + GRP_DB);
-        SC_Console.midPrint("Connecting to Group Data DB ...");
-        MongoClient.connect(DB_URI + GRP_DB, function (err, db) {
-            DB_GRP = db;
-            SC_Console.midPrint("Finished.");
-        });
+                SC_Console.midPrint("Group Data DB URI : " + DB_URI + GRP_DB);
+                SC_Console.midPrint("Connecting to Group Data DB ...");
+                MongoClient.connect(DB_URI + GRP_DB, function (err, db_GRP) {
+                    DB_GRP = db_GRP;
+                    SC_Console.midPrint("Finished.");
 
-        SC_Console.midPrint("Log Data List DB URI : " + DB_URI + LOG_DB);
-        SC_Console.midPrint("Connecting to Log Data List DB ...");
-        MongoClient.connect(DB_URI + LOG_DB, function (err, db) {
-            DB_LOG = db;
-            SC_Console.midPrint("Finished.");
-        });
+                    SC_Console.midPrint("Log Data List DB URI : " + DB_URI + LOG_DB);
+                    SC_Console.midPrint("Connecting to Log Data List DB ...");
+                    MongoClient.connect(DB_URI + LOG_DB, function (err, db_LOG) {
+                        DB_LOG = db_LOG;
+                        SC_Console.midPrint("Finished.");
 
-        SC_Console.midPrint("Sensor Data List DB URI : " + DB_URI + SS_DB);
-        SC_Console.midPrint("Connecting to Sensor Data List DB ...");
-        MongoClient.connect(DB_URI + SS_DB, function (err, db) {
+                        SC_Console.midPrint("Sensor Data List DB URI : " + DB_URI + SS_DB);
+                        SC_Console.midPrint("Connecting to Sensor Data List DB ...");
+                        MongoClient.connect(DB_URI + SS_DB, function (err, db_SS) {
+                            DB_SS = db_SS;
+                            SC_Console.midPrint("Finished.");
+                            SC_Console.endPrint();
 
-            DB_SS = db;
-            SC_Console.midPrint("Finished.");
-
-            MH.insertOne(DB_SS, 'key', {key: +KEY_TOPIC}, function () {
-                SC_Console.midPrint('Initialization finished.');
-                SC_Console.endPrint();
-
-                QH.initQH();
+                            QH.initQH();
+                        });
+                    });
+                });
             });
         });
-
     });
-
 });
