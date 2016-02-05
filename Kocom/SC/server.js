@@ -277,7 +277,7 @@ MongoClient.connect(DB_URI + CFG_DB, function (err, db_SCCFG) {
     MH.removeAll(DB_SCCFG, 'key', function () {
         SC_Console.midPrint('Previous KEY_TOPIC is Removed');
         
-        MH.insertOne(DB_SCCFG, 'key', {key: +KEY_TOPIC}, function () {
+        MH.insertOne(DB_SCCFG, 'key', {key: KEY_TOPIC}, function () {
             SC_Console.midPrint('New KEY_TOPIC is Inserted (' + KEY_TOPIC + ')');
 
             SC_Console.midPrint("Thin-Gateway Configuration DB URI : " + DB_URI + TG_DB);
