@@ -38,9 +38,9 @@ var QH = {
             QH.subscribeTopic('kocom/Log/#');
             QH.subscribeTopic('kocom/registerTG');
             // QH.subscribeTopic('kocom/TGThr/#');
-//            QH.subscribeTopic('SC/TGThr/#');
-//            QH.subscribeTopic('SC/SERV/#');
-//            QH.subscribeTopic('SC/THR/#');
+            QH.subscribeTopic('SC/TGThr/#');
+            QH.subscribeTopic('SC/SERV/#');
+            QH.subscribeTopic('SC/THR/#');
 
             SC_Console.midPrint('MQTT Initialized.');
             SC_Console.endPrint();
@@ -88,10 +88,10 @@ var QH = {
                         SC_Console.midPrint('Action : Thin-Gateway Threshold Request');
 
 
-                        QH.publishMsg(THR_TOPIC + msg.userid, JSON.stringify({
+                        QH.publishMsg('SC/THR/' + msg.userid, JSON.stringify({
                             type: msg.type,
                             userid: msg.userid,
-                            tgid: spTopic[2],
+                            tgid: msg.tgid,
                             data: msg.data
                         }));
 
@@ -100,48 +100,94 @@ var QH = {
                         SC_Console.endPrint();
 
                     } else if (spTopic[1] === 'SERV') {
-                        SC_Console.midPrint('Action : APP Service List Request');
-                        var user = spTopic[2];
-                        SC_Console.midPrint('USER_ID : ' + user);
-                        if (msg.type == 'requestService') {
+                        if(spTopic[2] == "USER_01"){
                             SC_Console.midPrint('Action : APP Service List Request');
-                            var service_data = '[';
-                            MH.findAll(DB_SCCFG, 'service', {}, function (DB_SCCFG) {
-                                for (var i = 0; i < DB_SCCFG.length; i++) {
-                                    service_data += (JSON.stringify({
-                                        service_id: DB_SCCFG[i].service_id,
-                                        description: DB_SCCFG[i].description
-                                    }));
+                            var user = spTopic[2];
+                            SC_Console.midPrint('USER_ID : ' + user);
+                            if (msg.type == 'requestService') {
+                                SC_Console.midPrint('Action : APP Service List Request');
+                                var service_data = '[';
+                                MH.findAll(DB_SCCFG, 'service', {}, function (DB_SCCFG) {
+                                    for (var i = 0; i < DB_SCCFG.length; i++) {
+                                        service_data += (JSON.stringify({
+                                            service_id: DB_SCCFG[i].service_id,
+                                            description: DB_SCCFG[i].description
+                                        }));
 
-                                    if (i == DB_SCCFG.length - 1)
-                                        service_data += ']';
-                                    else
-                                        service_data += ',';
-                                }
+                                        if (i == DB_SCCFG.length - 1)
+                                            service_data += ']';
+                                        else
+                                            service_data += ',';
+                                    }
                                 //SC_Console.midPrint(service_data);
-                                if (msg.data == '') {
-                                    QH.publishMsg('SC/SERV/' + msg.userid, JSON.stringify({
-                                        type: msg.type,
+                                    if (msg.data == '') {
+                                        QH.publishMsg('SC/SERV/' + msg.userid, JSON.stringify({
+                                            type: 'responseService',
+                                            userid: msg.userid,
+                                            tgid: msg.tgid,
+                                            data: service_data
+                                        }));
+                                    }
+                                    else {
+                                        SC_Console.midPrint('data : ' + msg.data);
+                                    //   for( var i in msg.data)
+                                    //      SC_Console.midPrint('data : ' +msg.data[i].server_id);
+                                    }
+                                });
+                            }
+                            else if (msg.type == 'requestServiceDetail') {
+                                SC_Console.midPrint('Action : APP Service List Request');
+                            //MH.findAll(DB_SCCFG, 'service', {service_id : msg.data}, function(DB_SCCFG){
+                                MH.findAll(DB_TGCFG, msg.tgid, {service_id: msg.data}, function (DB_TGCFG) {
+                                    SC_Console.midPrint('Service Detail : ' + DB_TGCFG.act);
+                                });
+                            }
+                        } else if(spTopic[2] == "TG_01"){
+                            SC_Console.midPrint('response from '+spTopic[2]);
+
+                            var coll_name = spTopic[2];
+
+                            MH.insertOne(DB_TGCFG, coll_name, {
+                                'type' : msg.type,
+                                'userid' : msg.userid,
+                                'tgid' : msg.tgid,
+                                'origin' : msg.origin,
+                                'dev_type' : msg.dev_type,
+                                'sensor' : msg.sensor
+                            }, function (err) {
+                                assert.equal(err, null);
+                                SC_Console.midPrint('Public data is stored.');
+                                SC_Console.endPrint();
+                            });
+                        }
+                    } else if (spTopic[1] === 'THR') {
+                        if(msg.type == 'requestThr'){
+                            SC_Console.midPrint('Action : APP Threshold Request');
+
+                            MH.findAll(DB_TGCFG, 'TG_01', {}, function (TG_DB) {
+                                for(var i=0 ; i<TG_DB.length ; i++){
+                                    var service_data = TG_DB[i].origin;
+
+                                    QH.publishMsg('SC/THR/' + msg.userid, JSON.stringify({
+                                        type: 'responseThr',
                                         userid: msg.userid,
                                         tgid: msg.tgid,
                                         data: service_data
                                     }));
                                 }
-                                else {
-                                    SC_Console.midPrint('data : ' + msg.data);
-                                    //   for( var i in msg.data)
-                                    //      SC_Console.midPrint('data : ' +msg.data[i].server_id);
-                                }
                             });
+                        } else if(msg.type == 'changeThrReq'){
+                            SC_Console.midPrint('Action : APP Threshold Change Request');
+
+                            QH.publishMsg('kocom/TGThr' + msg.tgid, JSON.stringify({
+                                type: msg.type,
+                                userid: msg.userid,
+                                tgid: msg.tgid,
+                                data: msg.data
+                            }));
                         }
-                        else if (msg.type == 'requestServiceDetail') {
-                            SC_Console.midPrint('Action : APP Service List Request');
-                            //MH.findAll(DB_SCCFG, 'service', {service_id : msg.data}, function(DB_SCCFG){
-                            MH.findAll(DB_TGCFG, msg.tgid, {service_id: msg.data}, function (DB_TGCFG) {
-                                SC_Console.midPrint('Service Detail : ' + DB_TGCFG.act);
-                            });
-                        }
-                    } else if (spTopic[1] === 'THR') {
+
+                        /*
                         SC_Console.midPrint('Action : APP Threshold Request');
                         if (msg.type.indexOf('Req')) {
                             if (msg.type == 'changeThrReq')
@@ -157,6 +203,7 @@ var QH = {
                         }
                         SC_Console.midPrint('Transffered threshold request to TG...');
                         SC_Console.endPrint();
+                        */
                     } else if (spTopic[1] === 'registerTG') {
                         SC_Console.midPrint('Action : Thin-Gateway Registration First Step');
                         SC_Console.midPrint('TG ID : ' + msg.thID);
@@ -178,6 +225,8 @@ var QH = {
 
                         QH.publishMsg(msg.thID, JSON.stringify({type: '00', data: encrypted.toString()}));
                         SC_Console.midPrint('Thin-Gateway Registration Finished...');
+                    } else if (spTopic[1] === 'PUSH') {
+                        
                     } else {
                         SC_Console.midPrint('Wrong Topic...');
                     }
@@ -277,7 +326,7 @@ MongoClient.connect(DB_URI + CFG_DB, function (err, db_SCCFG) {
     MH.removeAll(DB_SCCFG, 'key', function () {
         SC_Console.midPrint('Previous KEY_TOPIC is Removed');
         
-        MH.insertOne(DB_SCCFG, 'key', {key: KEY_TOPIC}, function () {
+        MH.insertOne(DB_SCCFG, 'key', {key: +KEY_TOPIC}, function () {
             SC_Console.midPrint('New KEY_TOPIC is Inserted (' + KEY_TOPIC + ')');
 
             SC_Console.midPrint("Thin-Gateway Configuration DB URI : " + DB_URI + TG_DB);

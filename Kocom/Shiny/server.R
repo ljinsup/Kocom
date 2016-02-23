@@ -15,8 +15,23 @@ shinyServer(function(input, output, session) {
     toJSON(service)
   })
   
-  
-  output$CreateUI <- renderUI({fluidPage({
+  output$servicetypeselectUI <- renderUI(fixedPage({
+    selectInput("type", h4("서비스타입"),
+                c("21 Field Multiple-detection",
+                  "22 Windshield-crack Detection",
+                  "23 Fire Detection",
+                  "24 Gas Multiple-detection",
+                  "25 Pollution Detection",
+                  "26 Nurse-call by Scream",
+                  "27 Automatical Emergency-call",
+                  "28 Porch-State Detection",
+                  "29 Windshield-state Detection",
+                  "30 Interlayer-noise Detection",
+                  "31 Solitary-state Detection"
+                ), selectize = F)
+  }))
+
+  output$CreateUI <- renderUI({fixedPage({
     ######################################
     #        서비스 생성 페이지          #
     ######################################
@@ -25,7 +40,6 @@ shinyServer(function(input, output, session) {
       sidebarPanel(textOutput("text"), HTML("<br>"), actionButton("init", label = "초기화"), width=12),  
       
       tabsetPanel(id="tab", type="pills",
-                  
                   tabPanel("1단계: 공공데이터 선택",
                            ############### DB UI ###############
                            if(length(dblist)==0){    
@@ -52,7 +66,7 @@ shinyServer(function(input, output, session) {
                   
                   tabPanel("2단계: 분석 방법 선택",
                            ############### Analysis UI ###############
-                           if(length(dblist)==0){    
+                           if(length(dblist)==0){
                              h1("공공데이터를 넣어주세요")
                            }
                            else{
@@ -100,18 +114,7 @@ shinyServer(function(input, output, session) {
                              h3("EPL 생성"),
                              column(2, offset=1,
                                     selectInput("eplsensor", label = NULL, 
-                                                choices = c("",
-                                                            "GA-가스센서1",
-                                                            "GB-가스센서2",
-                                                            "VB-진동센서",
-                                                            "IR-적외선센서",
-                                                            "AC-가속도센서",
-                                                            "TH-온습도센서",
-                                                            "MA-마그넷센서",
-                                                            "DB-dB센서",
-                                                            "CS-조도센서",
-                                                            "FL-불꽃센서",
-                                                            "SH-소리센서"))
+                                                choices = servicesensors() )
                              ),
                              column(2, 
                                     selectInput("eploperator", label = NULL, 
@@ -238,7 +241,7 @@ shinyServer(function(input, output, session) {
     
     switch(input$analysismethod,
            "예측분석" = 
-             fluidPage(
+             fixedPage(
                sliderInput("predrange", "데이터 개수",
                            min = length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
                            max = nrow(recentpublic[recentinput$attr])
@@ -278,7 +281,7 @@ shinyServer(function(input, output, session) {
                }, width=800)
              ),
            "비율분석" =
-             fluidPage(
+             fixedPage(
                column(7, offset=1,
                       renderPlot({
                         pie(count(recentpublic[recentinput$attr])$freq, 
@@ -317,22 +320,26 @@ shinyServer(function(input, output, session) {
   #                                ANALYSIS                               #
   ###############################   DATAUI   ##############################
   output$sensorselectui <- renderUI({
+    
     fluidRow({
       radioButtons("analysissensor", label=h3("분석할 센서 선택"),
-                   choices = c("GA-가스센서1",
-                               "GB-가스센서2",
-                               "VB-진동센서",
-                               #                               "IR-적외선센서",
-                               #                               "AC-가속도센서",
-                               #                               "TH-온습도센서",
-                               #                               "MA-마그넷센서",
-                               #                               "DB-dB센서",
-                               #                               "CS-조도센서",
-                               #                               "FL-불꽃센서",
-                               "SH-소리센서") )
-      
-      #       renderPlot({}) // 센서데이터 그래프
+                   choices = servicesensors() )
     })
+  })
+  
+  servicesensors <- reactive({
+    input$type
+    list <- list()
+    if(is.null(input$type))
+      return(list)
+    
+    type <- unlist(strsplit(input$type, split = " "))[1]
+    for(i in 1:nrow(servicetable)){
+      if(servicetable[i,type]){
+        list <- append(list, as.character(servicetable[i,"SENSOR"]))
+      }
+    }
+    return(unlist(list))
   })
   
   output$publicselectui <- reactiveUI(function() {
@@ -447,14 +454,14 @@ shinyServer(function(input, output, session) {
       return()
     
     switch(input$resulttype,
-           "추가분석" = fluidPage(
+           "추가분석" = fixedPage(
              if(length(analysisdata()) != 0){
                radioButtons("resume", label = h4("분석 방법"),
                             choices = JSONtostr(analysisdata(), "no", "sensor", "public", "method"),
                             selected = NULL)
              }
            ),
-           "Actuator제어" = fluidPage(
+           "Actuator제어" = fixedPage(
              selectInput("actuator", label = h4("Actuator종류"), 
                          choices = c("",
                                      "Act01-환기장치",
@@ -466,7 +473,7 @@ shinyServer(function(input, output, session) {
              radioButtons("action", label = h4("동작"),
                           choices = c("on", "off"), selected = NULL)
            ),
-           "Push메시지" = fluidPage(
+           "Push메시지" = fixedPage(
              textInput("id", label = h4("제목")),
              textInput("message", label = h4("메세지"))
            )
@@ -541,9 +548,9 @@ shinyServer(function(input, output, session) {
   observeEvent(input$epladd, function() {  
     messaging <- Progress$new()
     if(inputFix(input$eplvalue, "^[0-9]+$") && input$eplsensor != "" && input$eploperator != "") {
-      sensorlist[[length(sensorlist) +1]] <<- unlist(strsplit(input$eplsensor, split = "-"))[1]
+      sensorlist[[length(sensorlist) +1]] <<- input$eplsensor#unlist(strsplit(input$eplsensor, split = "-"))[1]
       sensorlist <<- unique((sensorlist))
-      epl[[length(epl) +1]] <<- paste(unlist(strsplit(input$eplsensor, split = "-"))[1], input$eploperator, input$eplvalue, sep=" ")
+      epl[[length(epl) +1]] <<- paste(input$eplsensor, input$eploperator, input$eplvalue, sep=" ")
       
       if(length(sensorlist) == length(epl)){
         .GlobalEnv$service[["sensorlist"]] <- unique(.GlobalEnv$sensorlist)
@@ -597,7 +604,7 @@ shinyServer(function(input, output, session) {
   #                           Publicdata List                            #
   ########################################################################
   output$PublicUI <- renderUI({
-    fluidPage(
+    fixedPage(
       textInput("publicaddr", label = h4("공공데이터 API주소:"), value = "openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?numOfRows=1&pageNo=1&stationName=%EC%86%A1%ED%8C%8C%EA%B5%AC&dataTerm=DAILY&", width = '100%'),
       textInput("publicapi", label = h4("공공데이터 API키:"), value = "g2PYYeRkm4XwNs5SkT%2BEm6ZWuLXQCBNLJ4jdEH43rTuU0WjKjo%2B2IBtyAr1EJmS2QqsImnnT3RCr5RNBZ0d25A%3D%3D", width = '100%'),
       textInput("publicname", label = h4("공공데이터 이름:"), value = "대기정보데이터"),
@@ -608,12 +615,12 @@ shinyServer(function(input, output, session) {
   
   output$PublicListUI <- renderUI({
     if(is.null(publictabledata())) {
-      fluidPage(h1("공공데이터를 넣어주세요."),
+      fixedPage(h1("공공데이터를 넣어주세요."),
                 actionButton("refreshpubliclist", "새로 고침")
       )
     }
     else {
-      fluidPage(
+      fixedPage(
         checkboxGroupInput("publiclist", label = h4("공공데이터 목록"),
                            choices = publictabledata(), selected = NULL),
         actionButton("publicremove", label = "제거")
@@ -733,14 +740,14 @@ shinyServer(function(input, output, session) {
   ##############################     UI     ##############################
   output$ServiceListUI <- renderUI({
     if(is.null(tabledata())) {
-      fluidPage(h1("생성된 서비스가 없습니다."),
+      fixedPage(h1("생성된 서비스가 없습니다."),
                 actionButton("refreshpubliclist", "새로 고침")
       )
     }
     else {
-      fluidPage(
-        checkboxGroupInput("servicelist", label = h4("공공데이터 목록"),
-                           choices = publictabledata(), selected = NULL),
+      fixedPage(
+        checkboxGroupInput("servicelist", label = h4("서비스 목록"),
+                           choices = tabledata(), selected = NULL),
         actionButton("serviceremove", label = "제거")
       )}
   })
@@ -831,7 +838,7 @@ shinyServer(function(input, output, session) {
       list$sensor <- sensor
       list$actuator <- actuator
       
-      .GlobalEnv$service[["servicetype"]] <- .GlobalEnv$service$service_id
+      .GlobalEnv$service[["servicetype"]] <- unlist(strsplit(input$servicetype, split = " "))[1]
       .GlobalEnv$service[["requirement"]] <- list
       .GlobalEnv$service[["description"]] <- input$description
       progress$set(message = toJSON(service))

@@ -52,7 +52,15 @@ function pdCollector(ob) {
             var collection = ob.collection;
             SC_Console.midPrint('Collection Name : ' + collection);
             var jsonObjTemp = xml2json.parser(chunk);
-            var jsonObj = JSON.parse(JSON.stringify(jsonObjTemp.response.body.items.item));
+
+            var test = jsonObjTemp.response.body.items.item;
+
+            for(var i=0 ; i<Object.keys(test).length ; i++){
+                if(json[Object.keys(json)[i]] == '-')
+                    return;
+            }
+
+            var jsonObj = JSON.parse(JSON.stringify(test));
             SC_Console.midPrint('JSON Parsed.');
 
             MH.insertOne(DB_DATA, collection, jsonObj, function (err, result) {
