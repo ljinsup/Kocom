@@ -17,17 +17,17 @@ shinyServer(function(input, output, session) {
   
   output$servicetypeselectUI <- renderUI(fixedPage({
     selectInput("type", h4("서비스타입"),
-                c("21 Field Multiple-detection",
-                  "22 Windshield-crack Detection",
-                  "23 Fire Detection",
-                  "24 Gas Multiple-detection",
-                  "25 Pollution Detection",
-                  "26 Nurse-call by Scream",
-                  "27 Automatical Emergency-call",
-                  "28 Porch-State Detection",
-                  "29 Windshield-state Detection",
-                  "30 Interlayer-noise Detection",
-                  "31 Solitary-state Detection"
+                c("21 현장복합감지",
+                  "22 유리창깨짐감지",
+                  "23 복합화재감지",
+                  "24 복합가스감지",
+                  "25 환경감지",
+                  "26 비명에의한너스콜",
+                  "27 비상자동콜",
+                  "28 현관상태감지",
+                  "29 창문상태감지",
+                  "30 창문상태감지",
+                  "31 독거인상태감지"
                 ), selectize = F)
   }))
 

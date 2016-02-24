@@ -56,7 +56,7 @@ function pdCollector(ob) {
             var test = jsonObjTemp.response.body.items.item;
 
             for(var i=0 ; i<Object.keys(test).length ; i++){
-                if(json[Object.keys(json)[i]] == '-')
+                if(test[Object.keys(test)[i]] == '-')
                     return;
             }
 
