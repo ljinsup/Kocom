@@ -2,6 +2,7 @@ library(shiny)
 
 shinyUI(basicPage(
 #   uiOutput("CreateUI")
+  
 
   img(src = "logo.png", width = 600, height = 100),
   tabsetPanel(id="tab",
@@ -26,7 +27,16 @@ shinyUI(basicPage(
                        fixedPage(
                          uiOutput("ServiceListUI")
                        )
+              ),
+              tabPanel("센서데이터 확인",
+                       fixedPage(
+                         uiOutput("RealtimeSensorUI")
+                       )
+              ),
+              tabPanel("데이터 분석 상태 확인",
+                       fixedPage(
+                         uiOutput("RealtimeAnalyUI")
+                       )
               )
-                     
   )
   ))

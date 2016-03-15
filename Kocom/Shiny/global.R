@@ -40,7 +40,7 @@ servicetable <- cbind(servicetable, c(F,F,F,T,T,F,T,F,F,F,F))
 servicetable <- cbind(servicetable, c(F,F,T,T,T,F,F,F,F,F,F))
 servicetable <- cbind(servicetable, c(F,F,F,F,F,F,F,T,F,F,T))
 servicetable <- cbind(servicetable, c(F,F,T,F,T,F,F,F,T,F,T))
-names(servicetable) <- c("SENSOR", 21:29, "2A", "2B")
+names(servicetable) <- c("SENSOR", as.character(21:29), "2A", "2B")
 
 
 #dblist <- rmongodb::mongo.get.database.collections(mongo_db, attr(mongo_db, "db"))
@@ -134,8 +134,4 @@ publicdatafunc <- function(){
   else
     return(unique(as.list(as.character(res.frame[,4]))))
 }
-
-
-
-
 

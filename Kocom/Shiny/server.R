@@ -883,8 +883,14 @@ shinyServer(function(input, output, session) {
     messaging$close()
   })
   
+  ########################################################################
+  output$RealtimeSensorUI <- renderUI({
+    
+  })
   
-  
+  output$RealtimeAnalyUI <- renderUI({
+    
+  })
   
   
   

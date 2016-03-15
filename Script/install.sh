@@ -1,4 +1,4 @@
-#sudo add-apt-repository ppa:webupd8team/java #add repository for java
+sudo add-apt-repository ppa:webupd8team/java #add repository for java
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927
 echo "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.2.list
 
@@ -32,10 +32,10 @@ sudo groupadd mosquitto
 cd ~
 
 mv Kocom/Kocom/R_Pkgs/* ~
-sudo R CMD BATCH installpkgs1.R #install R Packages
 sudo apt-get install r-cran-rjava -y #install Rjava
-sudo apt-get install liblzma-dev -y
 sudo R CMD javareconf #Rjava config
+sudo R CMD BATCH installpkgs1.R #install R Packages
+sudo apt-get install liblzma-dev -y
 sudo R CMD BATCH installpkgs2.R log #install R Packages
 cd /usr/lib/R/bin/
 sudo ln -sf ../site-library/Rserve/libs/Rserve #Rserve config
