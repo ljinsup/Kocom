@@ -3,6 +3,8 @@ library(rjson)
 library(rJava)
 library(forecast)
 library(googleVis)
+library(timeSeries)
+library(dygraphs)
 library(CEMS)
 
 
@@ -353,9 +355,6 @@ shinyServer(function(input, output, session) {
       fluidRow({  
         radioButtons("analysispublic", label=h3("공공데이터 선택"),
                      choices = JSONtostr(publicdata(), "collection", "attr" ))
-        
-        #         renderPlot({}) // 공공데이터 그래프
-        
       })
     }
   })
@@ -504,8 +503,9 @@ shinyServer(function(input, output, session) {
       for(data in .GlobalEnv$analysis_info){
         list[length(list)+1] <- toJSON(data)
       }
-    }
     return(unlist(list))
+    }
+    else(return(list))
   })
   
   RESULT <- reactive({
@@ -885,9 +885,22 @@ shinyServer(function(input, output, session) {
   
   ########################################################################
   output$RealtimeSensorUI <- renderUI({
-    
+    fixedPage({
+      dygraphOutput("realtimesensorplot")
+    })
   })
   
+  output$realtimesensorplot <- renderDygraph({
+    invalidateLater(5000,session)
+    
+    sensordata <- getAllData(mongo_sensor, "TG_01", "time")
+    sensordata <- tail(x = sensordata, n = 20)
+    sensordata <- sensordata[,c(length(sensordata), 1:length(sensordata)-1)]
+    dygraph(timeSeries(sensordata[,],sensordata$time)) %>% 
+      dyLegend(show = "follow")
+  })
+  
+  ########################################################################
   output$RealtimeAnalyUI <- renderUI({
     
   })

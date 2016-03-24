@@ -13,14 +13,14 @@ sensorlist <<- list()
 colllist<<- list()
 
 
-DBHOST <- "localhost"
+DBHOST <- "163.180.117.229"
 DBPORT <- 30000
 
 mongo_db <- CEMS::connectMongo(Addr = DBHOST, DB="scconfig", port=DBPORT)
 mongo_user <- CEMS::connectMongo(Addr = DBHOST, DB="userdata", port=DBPORT)
 mongo_tg <- CEMS::connectMongo(Addr = DBHOST, DB="sensordata", port=DBPORT)
 mongo_public <- CEMS::connectMongo(Addr = DBHOST, DB="publicdata", port=DBPORT)
-mongo_usgs <- CEMS::connectMongo(Addr = DBHOST, DB="usgsdata", port=DBPORT)
+mongo_sensor <- CEMS::connectMongo(Addr = DBHOST, DB="sensordata", port=DBPORT)
 
 for(coll in colllist){
   if(coll[,2]=="TRUE")
