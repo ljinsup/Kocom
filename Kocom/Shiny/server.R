@@ -42,7 +42,29 @@ shinyServer(function(input, output, session) {
       sidebarPanel(textOutput("text"), HTML("<br>"), actionButton("init", label = "초기화"), width=12),  
       
       tabsetPanel(id="tab", type="pills",
-                  tabPanel("1단계: 공공데이터 선택",
+                  tabPanel("기본 설정",
+                           fixedPage(
+                             h3("THRESHOLD 설정"),
+                             column(2, offset=1,
+                                    selectInput("eplsensor", label = NULL, 
+                                                choices = servicesensors() )
+                             ),
+                             column(2, 
+                                    selectInput("eploperator", label = NULL, 
+                                                choices = c("", ">", ">=", "==", "<=", "<"))
+                             ),
+                             column(2, 
+                                    textInput("eplvalue", label=NULL)
+                             ),
+                             actionButton("epladd", label = "추가"),
+                             actionButton("eplremove", label = "제거"),
+                             
+                             textInput("serviceid", "서비스 번호:"),
+                             textInput("description", "설명:"),
+                             actionButton("save", label = "저장")                                                           
+                           )
+                  ),
+                  tabPanel("추가설정: 공공데이터 선택",
                            ############### DB UI ###############
                            if(length(dblist)==0){    
                              h1("공공데이터를 넣어주세요")
@@ -51,7 +73,8 @@ shinyServer(function(input, output, session) {
                            else{
                              fixedPage(
                                try({
-                                 plotOutput("dbplot")
+                                 dygraphOutput("dbplot")
+                                 #plotOutput("dbplot")
                                }),
                                actionButton("dbadd", label = "추가"),
                                actionButton("dbremove", label = "제거"),
@@ -66,7 +89,7 @@ shinyServer(function(input, output, session) {
                              )}
                   ),
                   
-                  tabPanel("2단계: 분석 방법 선택",
+                  tabPanel("추가설정: 분석 방법 선택",
                            ############### Analysis UI ###############
                            if(length(dblist)==0){
                              h1("공공데이터를 넣어주세요")
@@ -89,7 +112,7 @@ shinyServer(function(input, output, session) {
                              )}
                   )
                   ,
-                  tabPanel("3단계: 결과 수행 선택",
+                  tabPanel("추가설정: 결과 수행 선택",
                            ############### Result UI ###############
                            if(length(dblist)==0){    
                              h1("공공데이터를 넣어주세요")
@@ -103,36 +126,15 @@ shinyServer(function(input, output, session) {
                                uiOutput("rangeui"),
                                
                                selectInput("resulttype", label = h3("처리 방법"), 
-                                           choices = c("", "추가분석", "Actuator제어", "Push메시지")),
+                                           choices = c("", "추가분석", "Actuator제어")),
                                
                                uiOutput("resulttypeui"),
                                
                                actionButton("resultadd", label = "추가"),
                                actionButton("resultremove", label = "제거")               
                              )}
-                  ),
-                  tabPanel("기타 설정",
-                           fixedPage(
-                             h3("EPL 생성"),
-                             column(2, offset=1,
-                                    selectInput("eplsensor", label = NULL, 
-                                                choices = servicesensors() )
-                             ),
-                             column(2, 
-                                    selectInput("eploperator", label = NULL, 
-                                                choices = c("", ">", ">=", "==", "<=", "<"))
-                             ),
-                             column(2, 
-                                    textInput("eplvalue", label=NULL)
-                             ),
-                             actionButton("epladd", label = "추가"),
-                             actionButton("eplremove", label = "제거"),
-                             
-                             textInput("serviceid", "서비스 관리 번호:"),
-                             textInput("description", "설명:"),
-                             actionButton("save", label = "저장")                                                           
-                           )
                   )
+                  
                   
       )
     )
@@ -142,18 +144,21 @@ shinyServer(function(input, output, session) {
   
   
   ##############################   DBPLOT   ##############################
-  output$dbplot <- renderPlot({
+  output$dbplot <- renderDygraph({
     
     set <- get(input$dbselect)
     temp <- set[order(set[input$sort]),]
     
-    p <- plot(x=temp[[input$sort]],
-              y=temp[[input$attr]],
-              type="l",
-              xlab=input$sort,
-              ylab=input$attr
-    )
-  }, width = 800, height=350)
+  dygraph(timeSeries(temp[[input$attr]], temp[[input$sort]])) %>% 
+    dyRangeSelector()
+  })    
+#     p <- plot(x=temp[[input$sort]],
+#               y=temp[[input$attr]],
+#               type="l",
+#               xlab=input$sort,
+#               ylab=input$attr
+#     )
+#   }, width = 800, height=350)
   
   ##############################   DBSAVE   ##############################
   observeEvent(input$dbadd, function() {
@@ -245,7 +250,7 @@ shinyServer(function(input, output, session) {
            "예측분석" = 
              fixedPage(
                sliderInput("predrange", "데이터 개수",
-                           min = length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
+                         min = length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
                            max = nrow(recentpublic[recentinput$attr])
                            +length(forecast(auto.arima(recentpublic[recentinput$attr]))$mean),
                            value=nrow(recentpublic[recentinput$attr])
@@ -471,10 +476,6 @@ shinyServer(function(input, output, session) {
                          )),
              radioButtons("action", label = h4("동작"),
                           choices = c("on", "off"), selected = NULL)
-           ),
-           "Push메시지" = fixedPage(
-             textInput("id", label = h4("제목")),
-             textInput("message", label = h4("메세지"))
            )
     )
   })
@@ -530,11 +531,6 @@ shinyServer(function(input, output, session) {
       list$type <- "act"
       list$actuator_id <- unlist(strsplit(input$actuator, split="-"))[1]
       list$action <- input$action
-    }
-    else if(input$resulttype == "Push메시지"){
-      list$type <- "push"
-      list$mqtt_id <- input$id
-      list$message <- input$message
     }
     else {return}
     
@@ -603,7 +599,7 @@ shinyServer(function(input, output, session) {
   ########################################################################  
   #                           Publicdata List                            #
   ########################################################################
-  output$PublicUI <- renderUI({
+output$PublicUI <- renderUI({
     fixedPage(
       textInput("publicaddr", label = h4("공공데이터 API주소:"), value = "openapi.airkorea.or.kr/openapi/services/rest/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?numOfRows=1&pageNo=1&stationName=%EC%86%A1%ED%8C%8C%EA%B5%AC&dataTerm=DAILY&", width = '100%'),
       textInput("publicapi", label = h4("공공데이터 API키:"), value = "g2PYYeRkm4XwNs5SkT%2BEm6ZWuLXQCBNLJ4jdEH43rTuU0WjKjo%2B2IBtyAr1EJmS2QqsImnnT3RCr5RNBZ0d25A%3D%3D", width = '100%'),

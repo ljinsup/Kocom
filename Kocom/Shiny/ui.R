@@ -6,15 +6,14 @@ shinyUI(basicPage(
 
   img(src = "logo.png", width = 600, height = 100),
   tabsetPanel(id="tab",
-            
-              tabPanel("공공데이터 추가",
-                       fluidPage(
-                         uiOutput("PublicUI")
+              tabPanel("센서데이터 확인",
+                       fixedPage(
+                         uiOutput("RealtimeSensorUI")
                        )
               ),
-              tabPanel("공공데이터 목록",
+              tabPanel("서비스 목록",
                        fixedPage(
-                         uiOutput("PublicListUI")
+                         uiOutput("ServiceListUI")
                        )
               ),
               tabPanel("서비스 생성",
@@ -23,14 +22,14 @@ shinyUI(basicPage(
                          uiOutput("CreateUI")
                        )
               ),
-              tabPanel("서비스 목록",
-                       fixedPage(
-                         uiOutput("ServiceListUI")
+              tabPanel("공공데이터 추가",
+                       fluidPage(
+                         uiOutput("PublicUI")
                        )
               ),
-              tabPanel("센서데이터 확인",
+              tabPanel("공공데이터 목록",
                        fixedPage(
-                         uiOutput("RealtimeSensorUI")
+                         uiOutput("PublicListUI")
                        )
               ),
               tabPanel("데이터 분석 상태 확인",
