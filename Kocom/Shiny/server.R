@@ -897,10 +897,54 @@ output$PublicUI <- renderUI({
   })
   
   ########################################################################
-  output$RealtimeAnalyUI <- renderUI({
+  output$AnalysisLogUI <- renderUI({
+    actionButton("logrefresh")
     
+    logdata <- readlogdata()
+    
+    if(is.null(logdata)){
+      fluidPage({
+        h1("tests")
+      })
+    }
+    else
+    {
+      fixedPage({
+      h1("test")
+      })
+    }
   })
   
-  
+  readlogdata <- reactive({
+    input$logrefresh
+    
+    
+    mongo_log <- connectMongo(DB = "HISTORY", port = 30000)
+    
+    res.frame <- data.frame() 
+    
+    cursor <- mongo.find(mongo=mongo_log,
+                         ns=paste(attr(mongo_log, "db"), "TG_01", sep="."),
+                         query=mongo.bson.empty(),
+                         fields=mongo.bson.from.JSON('{"_id":0}'))
+    
+    if(mongo.cursor.next(cursor)){
+      res <- mongo.cursor.value(cursor)
+      res <- mongo.bson.to.list(res)
+      res <- as.data.frame(res)
+      res.frame <- rbind(res)
+    }
+    while(mongo.cursor.next(cursor)){
+      res <- mongo.cursor.value(cursor)
+      res <- mongo.bson.to.list(res)
+      res <- as.data.frame(res)
+      res.frame <- rbind(res.frame, res)
+    }
+    
+    if(nrow(res.frame) == 0)
+      return(NULL)
+    else
+      return(res.frame)
+  })
   
 })

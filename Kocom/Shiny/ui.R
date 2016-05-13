@@ -32,9 +32,9 @@ shinyUI(basicPage(
                          uiOutput("PublicListUI")
                        )
               ),
-              tabPanel("데이터 분석 상태 확인",
+              tabPanel("데이터 분석 로그",
                        fixedPage(
-                         uiOutput("RealtimeAnalyUI")
+                         uiOutput("AnalysisLogUI")
                        )
               )
   )
