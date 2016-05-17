@@ -21,6 +21,7 @@ mongo_user <- CEMS::connectMongo(Addr = DBHOST, DB="userdata", port=DBPORT)
 mongo_tg <- CEMS::connectMongo(Addr = DBHOST, DB="sensordata", port=DBPORT)
 mongo_public <- CEMS::connectMongo(Addr = DBHOST, DB="publicdata", port=DBPORT)
 mongo_sensor <- CEMS::connectMongo(Addr = DBHOST, DB="sensordata", port=DBPORT)
+mongo_log <- CEMS::connectMongo(Addr = DBHOST, DB="history", port=DBPORT)
 
 for(coll in colllist){
   if(coll[,2]=="TRUE")

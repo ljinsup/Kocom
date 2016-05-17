@@ -5,6 +5,7 @@ library(forecast)
 library(googleVis)
 library(timeSeries)
 library(dygraphs)
+library(ggplot2)
 library(CEMS)
 
 
@@ -28,7 +29,7 @@ shinyServer(function(input, output, session) {
                   "27 비상자동콜",
                   "28 현관상태감지",
                   "29 창문상태감지",
-                  "30 창문상태감지",
+                  "30 층간소음감지",
                   "31 독거인상태감지"
                 ), selectize = F)
   }))
@@ -889,8 +890,27 @@ output$PublicUI <- renderUI({
   output$realtimesensorplot <- renderDygraph({
     invalidateLater(5000,session)
     
-    sensordata <- getAllData(mongo_sensor, "TG_01", "time")
-    sensordata <- tail(x = sensordata, n = 20)
+    sensordata <- data.frame()
+    cursor <- mongo.find(mongo=mongo_sensor,
+                         ns=paste(attr(mongo_sensor, "db"), "TG_01", sep="."),
+                         query=mongo.bson.empty(),
+                         sort=mongo.bson.from.JSON('{"time":1}'),
+                         fields=mongo.bson.from.JSON('{"_id":0}'),
+                         limit = 20)
+    
+    if(mongo.cursor.next(cursor)){
+      res <- mongo.cursor.value(cursor)
+      res <- mongo.bson.to.list(res)
+      res <- as.data.frame(res)
+      sensordata <- rbind(res)
+    }
+    while(mongo.cursor.next(cursor)){
+      res <- mongo.cursor.value(cursor)
+      res <- mongo.bson.to.list(res)
+      res <- as.data.frame(res)
+      sensordata <- rbind(sensordata, res)
+    }
+    
     sensordata <- sensordata[,c(length(sensordata), 1:length(sensordata)-1)]
     dygraph(timeSeries(sensordata[,],sensordata$time)) %>% 
       dyLegend(show = "follow")
@@ -898,45 +918,53 @@ output$PublicUI <- renderUI({
   
   ########################################################################
   output$AnalysisLogUI <- renderUI({
-    actionButton("logrefresh")
-    
     logdata <- readlogdata()
     
     if(is.null(logdata)){
       fluidPage({
+        actionButton("logrefresh", "새로 고침")
         h1("tests")
       })
     }
     else
     {
       fixedPage({
-      h1("test")
+        actionButton("logrefresh", "새로 고침")
+        htmlOutput("logdatatable")
       })
     }
   })
   
+  output$logdatatable <- renderGvis({
+    data <- readlogdata()
+    Table <- gvisTable(data)
+  })
+  
   readlogdata <- reactive({
     input$logrefresh
-    
-    
-    mongo_log <- connectMongo(DB = "HISTORY", port = 30000)
     
     res.frame <- data.frame() 
     
     cursor <- mongo.find(mongo=mongo_log,
                          ns=paste(attr(mongo_log, "db"), "TG_01", sep="."),
                          query=mongo.bson.empty(),
-                         fields=mongo.bson.from.JSON('{"_id":0}'))
+                         sort=mongo.bson.from.JSON('{"datatime":-1}'),
+                         fields=mongo.bson.from.JSON('{"_id":0}'),
+                         limit = 100)
     
     if(mongo.cursor.next(cursor)){
       res <- mongo.cursor.value(cursor)
       res <- mongo.bson.to.list(res)
+      res$service <- toJSON(res$service)
+      res <- res[c(4:1)]
       res <- as.data.frame(res)
       res.frame <- rbind(res)
     }
     while(mongo.cursor.next(cursor)){
       res <- mongo.cursor.value(cursor)
       res <- mongo.bson.to.list(res)
+      res$service <- toJSON(res$service)
+      res <- res[c(4:1)]
       res <- as.data.frame(res)
       res.frame <- rbind(res.frame, res)
     }
