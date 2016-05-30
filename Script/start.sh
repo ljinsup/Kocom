@@ -1,6 +1,9 @@
 #path 
 source Kocom/Kocom/path
 
+#set ulimit open file 64000
+ulimit -n 64000
+
 #run MQTT port 1883
 sudo ufw allow 1883
 cd mosquitto
@@ -8,9 +11,6 @@ mosquitto -c mosquitto.conf -d
 cd ~
 
 #run MongoDB port 30000
-mkdir db
-mkdir db/log
-mkdir db/data
 mongod --fork --logpath db/log/log.log --logappend --port 30000 --dbpath db/data/ 
 
 #run Rserve port 6311

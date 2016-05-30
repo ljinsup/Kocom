@@ -13,7 +13,7 @@ sensorlist <<- list()
 colllist<<- list()
 
 
-DBHOST <- "163.180.117.229"
+DBHOST <- "localhost"
 DBPORT <- 30000
 
 mongo_db <- CEMS::connectMongo(Addr = DBHOST, DB="scconfig", port=DBPORT)

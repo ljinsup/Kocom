@@ -1,11 +1,11 @@
 library(shiny)
+library(plyr)
 library(rjson)
 library(rJava)
 library(forecast)
 library(googleVis)
 library(timeSeries)
 library(dygraphs)
-library(ggplot2)
 library(CEMS)
 
 
@@ -29,8 +29,8 @@ shinyServer(function(input, output, session) {
                   "27 비상자동콜",
                   "28 현관상태감지",
                   "29 창문상태감지",
-                  "30 층간소음감지",
-                  "31 독거인상태감지"
+                  "2a 층간소음감지",
+                  "2b 독거인상태감지"
                 ), selectize = F)
   }))
 
@@ -59,9 +59,12 @@ shinyServer(function(input, output, session) {
                              ),
                              actionButton("epladd", label = "추가"),
                              actionButton("eplremove", label = "제거"),
+                             textInput("serviceid", "서비스 번호:", unlist(strsplit(input$type, split = " "))[1]),
+                             textInput("description", "설명:", unlist(strsplit(input$type, split = " "))[2]),
                              
-                             textInput("serviceid", "서비스 번호:"),
-                             textInput("description", "설명:"),
+                             textInput("userid", "User_ID:", "USER_01"),
+                             textInput("tgid", "TG_ID:", "TG_01"),
+                             
                              actionButton("save", label = "저장")                                                           
                            )
                   ),
@@ -752,7 +755,7 @@ output$PublicUI <- renderUI({
   ##############################    FUNC    ##############################
   tabledata <- reactive({
     input$refreshlist
-    input$publiceremove
+    input$serviceremove
     res.frame <- data.frame() 
     
     cursor <- mongo.find(mongo=mongo_db,
@@ -804,65 +807,96 @@ output$PublicUI <- renderUI({
     progress <- Progress$new()
     progress$set(message = "서비스 저장중.")
     
-    if(length(.GlobalEnv$service) != 0
-       && !(is.null(.GlobalEnv$service$service_id)
-            && is.null(.GlobalEnv$service$description)
-            && is.null(.GlobalEnv$service$db_info)
-            && is.null(.GlobalEnv$service$analysis)
-            && is.null(.GlobalEnv$service$resultmnmt))
-    ){
-      
-      .GlobalEnv$service[["service_id"]] <- input$serviceid
-      list <- list()
-      sensor <- list()
-      actuator <- list()
-      desc <- list()
-      
-      
-      
-      for(data in .GlobalEnv$service[["analysis"]]){
-        sensor <- append(data$sensor, sensor)
-        sensor <- unique(unlist(sensor))
-      }
-      
-      for(data in .GlobalEnv$service[["resultmnmt"]]){
-        if(!is.null(data$actuator_id)){
-          actuator <- append(data$actuator_id, actuator)
-          actuator <- unique(unlist(actuator))
-        }
-      }
-      
-      list$sensor <- sensor
-      list$actuator <- actuator
-      
-      .GlobalEnv$service[["servicetype"]] <- unlist(strsplit(input$servicetype, split = " "))[1]
-      .GlobalEnv$service[["requirement"]] <- list
-      .GlobalEnv$service[["description"]] <- input$description
-      progress$set(message = toJSON(service))
-      
-      if(mongo.insert(mongo_db,
-                      paste(attr(mongo_db, "db"), "service", sep="."),
-                      mongo.bson.from.JSON(toJSON(.GlobalEnv$service)))    ){
-        progress$set(message = "저장 되었습니다.")
-        service <<- list()
-        service_id <<- list()
-        db_info <<- list()
-        analysis_info <<- list()
-        resultmnmt <<- list()
-        requirement <<- list()
-        epl <<- list()
-        sensorlist <<- list()  
+    if((inputFix(input$serviceid, "^[a-z|A-Z|0-9]+$")
+            && inputFix(input$description, "^[ㄱ-ㅎ|가-힣|a-z|A-Z|0-9| |*]+$")
+            && is.null(.GlobalEnv$service$epl))
+         ||
+       (inputFix(input$serviceid, "^[a-z|A-Z|0-9]+$")
+            && inputFix(input$description, "^[ㄱ-ㅎ|가-힣|a-z|A-Z|0-9| |*]+$")
+            && !is.null(.GlobalEnv$service$db_info)
+            && !is.null(.GlobalEnv$service$analysis)
+            && !is.null(.GlobalEnv$service$resultmnmt))  ){
+        progress$set(message = "입력할 데이터가 남았습니다.")
         Sys.sleep(2.0)
         progress$close()
-        
-        
+        return()
       }
-    }
-    else{
-      progress$set(message = "입력할 데이터가 남았습니다.")
-      Sys.sleep(2.0)
-      progress$close()
-    }
+      
+        query <- mongo.bson.buffer.create()
+        mongo.bson.buffer.append(query, "service_id", input$serviceid)
+        query <- mongo.bson.from.buffer(query)
+        
+        if( mongo.count(mongo_db, paste(attr(mongo_db, "db"), "service", sep="."), query ) > 0 ){
+          progress$set(message = "서비스ID가 중복되었습니다.")
+          Sys.sleep(2.0)
+          progress$close()
+          return()
+        }
+        
+        
+        .GlobalEnv$service[["service_id"]] <- input$serviceid
+        list <- list()
+      sensor <- list()
+        actuator <- list()
+        desc <- list()
+        
+        for(data in .GlobalEnv$service[["analysis"]]){
+          sensor <- append(data$sensor, sensor)
+          sensor <- unique(unlist(sensor))
+        }
+        
+        for(data in .GlobalEnv$service[["resultmnmt"]]){
+          if(!is.null(data$actuator_id)){
+            actuator <- append(data$actuator_id, actuator)
+            actuator <- unique(unlist(actuator))
+          }
+        }
+        list$sensor <- sensor
+        list$actuator <- actuator
+    
+        .GlobalEnv$service[["servicetype"]] <- unlist(strsplit(input$type, split = " "))[1]
+        .GlobalEnv$service[["requirement"]] <- list
+        .GlobalEnv$service[["description"]] <- input$description
+        
+        
+        progress$set(message = toJSON(service))
+        
+        q <- mongo.bson.buffer.create()
+        mongo.bson.buffer.append(q, "userid", "USER_01")
+        mongo.bson.buffer.append(q, "tgid", "TG_01")
+        q <- mongo.bson.from.buffer(q)
+        cursor <- mongo.find(mongo = mongo_tg, ns = paste(attr(mongo_tg, "db"), "TG_01", sep="."), query = q)
+        while(mongo.cursor.next(cursor)){
+          criteria <- mongo.cursor.value(cursor)
+          criteria <- mongo.bson.to.list(criteria)
+        }
+        
+        objNew <- criteria
+        list <- criteria$service
+        list <- append(list, .GlobalEnv$service)
+        objNew$service <- list
+        
+            if(mongo.insert(mongo_db,
+                            paste(attr(mongo_db, "db"), "service", sep="."),
+                            mongo.bson.from.JSON(toJSON(.GlobalEnv$service))) &&
+               mongo.update(mongo_tg,
+                            paste(attr(mongo_tg, "db"), "TG_01", sep="."),
+                            q,
+                            mongo.bson.from.list(objNew))
+               ){
+              progress$set(message = "저장 되었습니다.")
+              service <<- list()
+              service_id <<- list()
+              db_info <<- list()
+              analysis_info <<- list()
+              resultmnmt <<- list()
+              requirement <<- list()
+              epl <<- list()
+              sensorlist <<- list()  
+              Sys.sleep(2.0)
+              progress$close()
+              }
+        
   })
   
   observeEvent(c(input$init, session$request), function() {
@@ -882,38 +916,65 @@ output$PublicUI <- renderUI({
   
   ########################################################################
   output$RealtimeSensorUI <- renderUI({
-    fixedPage({
+    fixedPage(
+      selectInput("sensortype", h4("센서 종류"),
+                  c("21 현장복합감지",
+                    "22 유리창깨짐감지",
+                    "23 복합화재감지",
+                    "24 복합가스감지",
+                    "25 환경감지",
+                    "26 비명에의한너스콜",
+                    "27 비상자동콜",
+                    "28 현관상태감지",
+                    "29 창문상태감지",
+                    "2a 층간소음감지",
+                    "2b 독거인상태감지"
+                  ),selected = "21 현장복합감지", selectize = F),
+      
       dygraphOutput("realtimesensorplot")
-    })
+    )
   })
   
-  output$realtimesensorplot <- renderDygraph({
+  realtimesensordata <- reactive({
     invalidateLater(5000,session)
+    input$sensortype
     
     sensordata <- data.frame()
+    q <- mongo.bson.buffer.create()
+    mongo.bson.buffer.append(q, "dev_type", unlist(strsplit(as.character(input$sensortype), split = " "))[1])
+    q <- mongo.bson.from.buffer(q)
     cursor <- mongo.find(mongo=mongo_sensor,
                          ns=paste(attr(mongo_sensor, "db"), "TG_01", sep="."),
-                         query=mongo.bson.empty(),
-                         sort=mongo.bson.from.JSON('{"time":1}'),
-                         fields=mongo.bson.from.JSON('{"_id":0}'),
+                         query=q,
+                         sort=mongo.bson.from.JSON('{"time":-1}'),
+                         fields=mongo.bson.from.JSON('{"_id":0, "dev_type":0}'),
                          limit = 20)
     
     if(mongo.cursor.next(cursor)){
       res <- mongo.cursor.value(cursor)
       res <- mongo.bson.to.list(res)
       res <- as.data.frame(res)
-      sensordata <- rbind(res)
+      sensordata <- rbind.fill(res)
     }
     while(mongo.cursor.next(cursor)){
       res <- mongo.cursor.value(cursor)
       res <- mongo.bson.to.list(res)
       res <- as.data.frame(res)
-      sensordata <- rbind(sensordata, res)
+      sensordata <- rbind.fill(sensordata, res)
+    }
+    return(sensordata)
+  })
+  
+  output$realtimesensorplot <- renderDygraph({
+    invalidateLater(5000,session)
+    
+    sensordata <- realtimesensordata()
+    if(nrow(sensordata) !=0){
+    dygraph(timeSeries(sensordata[,],sensordata$time))  %>% 
+      dyOptions(connectSeparatedPoints = TRUE) %>% 
+      dyLegend(show = "follow")
     }
     
-    sensordata <- sensordata[,c(length(sensordata), 1:length(sensordata)-1)]
-    dygraph(timeSeries(sensordata[,],sensordata$time)) %>% 
-      dyLegend(show = "follow")
   })
   
   ########################################################################

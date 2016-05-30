@@ -15,6 +15,9 @@ sudo apt-get install -y build-essential
 
 sudo apt-get install -y mongodb-org #install mongodb
 #sudo apt-get install -y mongodb #install mongodb
+mkdir db
+mkdir db/log
+mkdir db/data
 
 sudo wget https://cran.r-project.org/bin/linux/ubuntu/trusty/r-base-core_3.2.1-3trusty0_amd64.deb #download r-base
 sudo gdebi -n r-base-core_3.2.1-3trusty0_amd64.deb #install r-base dependancy
